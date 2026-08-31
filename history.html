@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Study history — StudyQuest</title>
+  <meta name="description" content="Search, filter, sort and manage every study session you logged." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=Nunito:wght@400;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+</head>
+<body data-page="history">
+  <div id="toast-region"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a href="dashboard.html" class="brand">
+        <span class="brand-mark"><i data-lucide="book-open"></i></span>
+        StudyQuest
+      </a>
+      <div class="notebook-card side-profile">
+        <div class="side-profile-top">
+          <div class="avatar avatar-md" data-user-avatar></div>
+          <div style="min-width:0;">
+            <p style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" data-user-name></p>
+            <p class="hand text-primary" style="font-size:1.15rem;line-height:1;" data-user-level></p>
+          </div>
+        </div>
+        <div class="progress mt-3"><div data-user-progress></div></div>
+        <p class="muted mt-2" style="font-size:.72rem;" data-user-xp-next></p>
+        <p class="text-primary mt-1" style="font-size:.72rem;font-weight:700;display:flex;align-items:center;gap:.3rem;">
+          <i data-lucide="flame" style="width:.85rem;height:.85rem;"></i> <span data-user-streak></span>
+        </p>
+      </div>
+      <nav class="side-nav">
+        <a href="dashboard.html" data-nav-link="dashboard"><i data-lucide="book-open"></i>Desk</a>
+        <a href="timer.html" data-nav-link="timer"><i data-lucide="timer"></i>Timer</a>
+        <a href="subjects.html" data-nav-link="subjects"><i data-lucide="library"></i>Subjects</a>
+        <a href="stats.html" data-nav-link="stats"><i data-lucide="bar-chart-3"></i>Stats</a>
+        <a href="history.html" data-nav-link="history"><i data-lucide="history"></i>History</a>
+        <a href="leaderboard.html" data-nav-link="leaderboard"><i data-lucide="trophy"></i>Ranks</a>
+        <a href="profile.html" data-nav-link="profile"><i data-lucide="user-round"></i>Profile</a>
+      </nav>
+      <button class="btn btn-ghost" style="margin-top:auto;justify-content:flex-start;" data-sign-out>
+        <i data-lucide="log-out"></i> Sign out
+      </button>
+    </aside>
+
+    <div class="main-col">
+      <header class="mobile-header">
+        <div class="avatar avatar-sm" data-user-avatar></div>
+        <div style="min-width:0;flex:1;">
+          <p style="font-size:.85rem;font-weight:800;" data-user-level></p>
+          <div class="progress progress-thin mt-1"><div data-user-progress></div></div>
+        </div>
+        <button class="btn btn-ghost btn-icon" data-sign-out aria-label="Sign out"><i data-lucide="log-out"></i></button>
+      </header>
+
+      <main class="page">
+        <header class="page-header">
+          <div>
+            <p class="hand text-primary" style="font-size:1.25rem;">Your notebook log</p>
+            <h1>Study history</h1>
+          </div>
+        </header>
+
+        <div class="notebook-card card">
+          <div class="flex" style="flex-wrap:wrap;gap:.75rem;">
+            <div style="position:relative;min-width:200px;flex:1;">
+              <i data-lucide="search" style="position:absolute;left:.7rem;top:50%;transform:translateY(-50%);width:1rem;height:1rem;color:var(--muted-foreground);"></i>
+              <input id="h-search" style="padding-left:2.2rem;" placeholder="Search sessions, notes or subjects" maxlength="80" />
+            </div>
+            <select id="h-subject" style="width:170px;">
+              <option value="all">All subjects</option>
+              <option value="none">No subject</option>
+            </select>
+            <select id="h-sort" style="width:150px;">
+              <option value="date">Sort by date</option>
+              <option value="duration">Sort by duration</option>
+              <option value="xp">Sort by XP</option>
+            </select>
+            <button class="btn btn-secondary" id="h-order"><i data-lucide="arrow-up-down"></i> <span id="h-order-label">Descending</span></button>
+          </div>
+
+          <p class="hand text-primary mt-3" style="font-size:1.2rem;" id="h-summary"></p>
+
+          <div class="table-wrap mt-4">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th><th>Subject</th><th>Session</th><th>Duration</th><th>XP</th><th>Notes</th>
+                  <th style="text-align:right;">Delete</th>
+                </tr>
+              </thead>
+              <tbody id="h-body"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </main>
+
+      <nav class="bottom-nav">
+        <a href="dashboard.html" data-nav-link="dashboard"><i data-lucide="book-open"></i>Desk</a>
+        <a href="timer.html" data-nav-link="timer"><i data-lucide="timer"></i>Timer</a>
+        <a href="subjects.html" data-nav-link="subjects"><i data-lucide="library"></i>Subjects</a>
+        <a href="stats.html" data-nav-link="stats"><i data-lucide="bar-chart-3"></i>Stats</a>
+        <a href="history.html" data-nav-link="history"><i data-lucide="history"></i>History</a>
+        <a href="leaderboard.html" data-nav-link="leaderboard"><i data-lucide="trophy"></i>Ranks</a>
+        <a href="profile.html" data-nav-link="profile"><i data-lucide="user-round"></i>Profile</a>
+      </nav>
+    </div>
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/history.js"></script>
+</body>
+</html>

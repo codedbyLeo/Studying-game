@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Study timer — StudyQuest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=Nunito:wght@400;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+</head>
+<body data-page="timer">
+  <div id="toast-region"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a href="dashboard.html" class="brand">
+        <span class="brand-mark"><i data-lucide="book-open"></i></span>
+        StudyQuest
+      </a>
+      <div class="notebook-card side-profile">
+        <div class="side-profile-top">
+          <div class="avatar avatar-md" data-user-avatar></div>
+          <div style="min-width:0;">
+            <p style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" data-user-name></p>
+            <p class="hand text-primary" style="font-size:1.15rem;line-height:1;" data-user-level></p>
+          </div>
+        </div>
+        <div class="progress mt-3"><div data-user-progress></div></div>
+        <p class="muted mt-2" style="font-size:.72rem;" data-user-xp-next></p>
+        <p class="text-primary mt-1" style="font-size:.72rem;font-weight:700;display:flex;align-items:center;gap:.3rem;">
+          <i data-lucide="flame" style="width:.85rem;height:.85rem;"></i> <span data-user-streak></span>
+        </p>
+      </div>
+      <nav class="side-nav">
+        <a href="dashboard.html" data-nav-link="dashboard"><i data-lucide="book-open"></i>Desk</a>
+        <a href="timer.html" data-nav-link="timer"><i data-lucide="timer"></i>Timer</a>
+        <a href="subjects.html" data-nav-link="subjects"><i data-lucide="library"></i>Subjects</a>
+        <a href="stats.html" data-nav-link="stats"><i data-lucide="bar-chart-3"></i>Stats</a>
+        <a href="history.html" data-nav-link="history"><i data-lucide="history"></i>History</a>
+        <a href="leaderboard.html" data-nav-link="leaderboard"><i data-lucide="trophy"></i>Ranks</a>
+        <a href="profile.html" data-nav-link="profile"><i data-lucide="user-round"></i>Profile</a>
+      </nav>
+      <button class="btn btn-ghost" style="margin-top:auto;justify-content:flex-start;" data-sign-out>
+        <i data-lucide="log-out"></i> Sign out
+      </button>
+    </aside>
+
+    <div class="main-col">
+      <header class="mobile-header">
+        <div class="avatar avatar-sm" data-user-avatar></div>
+        <div style="min-width:0;flex:1;">
+          <p style="font-size:.85rem;font-weight:800;" data-user-level></p>
+          <div class="progress progress-thin mt-1"><div data-user-progress></div></div>
+        </div>
+        <button class="btn btn-ghost btn-icon" data-sign-out aria-label="Sign out"><i data-lucide="log-out"></i></button>
+      </header>
+
+      <main class="page">
+        <header class="page-header">
+          <div>
+            <p class="hand text-primary" style="font-size:1.25rem;">Focus time</p>
+            <h1>Study timer</h1>
+          </div>
+        </header>
+
+        <div id="unlock-overlay" class="modal-overlay">
+          <div class="notebook-card celebrate-box animate-level-up">
+            <p class="hand text-primary" style="font-size:1.8rem;">Badge unlocked!</p>
+            <ul id="unlock-list" style="list-style:none;padding:0;margin:.75rem 0 0;display:flex;flex-direction:column;gap:.5rem;"></ul>
+            <button class="btn btn-primary btn-block mt-4" id="unlock-close">Nice!</button>
+          </div>
+        </div>
+
+        <div class="grid" style="gap:1rem;" id="timer-grid">
+          <div class="notebook-card animate-pop-in card">
+            <h2 class="card-title"><i data-lucide="play" style="width:1rem;height:1rem;color:var(--primary);"></i> Stopwatch</h2>
+            <div class="stopwatch-display ruled">
+              <p class="time" id="stopwatch-time">00:00:00</p>
+              <p class="hand text-primary mt-2" style="font-size:1.2rem;" id="stopwatch-xp">0 XP so far</p>
+            </div>
+
+            <div class="grid mt-4" style="grid-template-columns:1fr 1fr;gap:.75rem;">
+              <div class="field" style="margin-bottom:0;">
+                <label for="tw-subject">Subject</label>
+                <select id="tw-subject"><option value="">Pick a subject</option></select>
+              </div>
+              <div class="field" style="margin-bottom:0;">
+                <label for="tw-name">Session name</label>
+                <input id="tw-name" placeholder="Chapter 4 revision" maxlength="80" />
+              </div>
+            </div>
+
+            <div class="flex mt-4" style="flex-wrap:wrap;gap:.5rem;">
+              <button class="btn btn-primary" style="flex:1;" id="tw-toggle"><i data-lucide="play"></i> Start</button>
+              <button class="btn btn-secondary" id="tw-finish"><i data-lucide="save"></i> Finish</button>
+              <button class="btn btn-ghost btn-icon" id="tw-reset" aria-label="Reset timer"><i data-lucide="rotate-ccw"></i></button>
+            </div>
+            <p class="muted mt-3" id="tw-tip" style="font-size:.85rem;display:none;">
+              Tip: <a href="subjects.html" style="color:var(--primary);font-weight:700;text-decoration:underline;">add a subject</a> so your sessions get organised.
+            </p>
+          </div>
+
+          <div class="notebook-card animate-pop-in card">
+            <h2 class="card-title"><i data-lucide="notebook-pen" style="width:1rem;height:1rem;color:var(--primary);"></i> Log a past session</h2>
+            <form id="manual-form">
+              <div class="grid" style="grid-template-columns:1fr 1fr;gap:.75rem;">
+                <div class="field">
+                  <label for="m-date">Date</label>
+                  <input id="m-date" type="date" />
+                </div>
+                <div class="field">
+                  <label for="m-minutes">Minutes studied</label>
+                  <input id="m-minutes" type="number" min="1" max="1440" value="30" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="m-subject">Subject</label>
+                <select id="m-subject"><option value="">Pick a subject</option></select>
+              </div>
+              <div class="field">
+                <label for="m-name">Session name</label>
+                <input id="m-name" placeholder="Past paper practice" maxlength="80" />
+              </div>
+              <div class="field">
+                <label for="m-notes">Notes</label>
+                <textarea id="m-notes" rows="3" maxlength="1000" placeholder="What did you cover?"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary btn-block"><i data-lucide="save"></i> Save session</button>
+            </form>
+          </div>
+        </div>
+      </main>
+
+      <nav class="bottom-nav">
+        <a href="dashboard.html" data-nav-link="dashboard"><i data-lucide="book-open"></i>Desk</a>
+        <a href="timer.html" data-nav-link="timer"><i data-lucide="timer"></i>Timer</a>
+        <a href="subjects.html" data-nav-link="subjects"><i data-lucide="library"></i>Subjects</a>
+        <a href="stats.html" data-nav-link="stats"><i data-lucide="bar-chart-3"></i>Stats</a>
+        <a href="history.html" data-nav-link="history"><i data-lucide="history"></i>History</a>
+        <a href="leaderboard.html" data-nav-link="leaderboard"><i data-lucide="trophy"></i>Ranks</a>
+        <a href="profile.html" data-nav-link="profile"><i data-lucide="user-round"></i>Profile</a>
+      </nav>
+    </div>
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/timer.js"></script>
+</body>
+</html>

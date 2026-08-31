@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>StudyQuest — Turn studying into an RPG</title>
+  <meta name="description" content="Track study sessions, earn XP for every minute, level up, build streaks and climb the student leaderboard with StudyQuest." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=Nunito:wght@400;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+</head>
+<body>
+  <div class="container">
+    <header class="landing-header">
+      <span class="brand">
+        <span class="brand-mark"><i data-lucide="book-open"></i></span>
+        StudyQuest
+      </span>
+      <a id="header-cta" class="btn btn-primary" href="auth.html">Sign in</a>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="hand text-primary" style="font-size:1.4rem;">study smarter, level up</p>
+          <h1>Turn every study session into XP</h1>
+          <p class="muted mt-4" style="max-width:32rem;font-size:1.05rem;">
+            StudyQuest is a cozy digital notebook that tracks your study time, rewards you with XP
+            and levels, keeps your streak alive and ranks you against other students.
+          </p>
+          <div class="flex mt-4" style="flex-wrap:wrap;gap:.75rem;">
+            <a id="hero-cta" class="btn btn-primary btn-lg" href="auth.html">Start my quest</a>
+            <a class="btn btn-secondary btn-lg" href="auth.html">I already have an account</a>
+          </div>
+          <div class="flex mt-4" style="flex-wrap:wrap;gap:.5rem;">
+            <span class="sticky-note rotate-neg1" style="padding:.4rem .8rem;font-weight:800;font-size:.85rem;">1 min = 1 XP</span>
+            <span class="sticky-note rotate-neg1" style="padding:.4rem .8rem;font-weight:800;font-size:.85rem;">Daily streaks</span>
+            <span class="sticky-note rotate-neg1" style="padding:.4rem .8rem;font-weight:800;font-size:.85rem;">12-week heatmap</span>
+            <span class="sticky-note rotate-neg1" style="padding:.4rem .8rem;font-weight:800;font-size:.85rem;">Global ranks</span>
+          </div>
+        </div>
+
+        <div class="hero-art animate-float">
+          <svg width="320" height="260" viewBox="0 0 320 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="30" y="150" width="260" height="14" rx="7" fill="var(--primary)" opacity="0.15"/>
+            <rect x="55" y="60" width="150" height="110" rx="10" fill="var(--paper)" stroke="var(--border)" stroke-width="2"/>
+            <line x1="70" y1="85" x2="190" y2="85" stroke="var(--paper-line)" stroke-width="2"/>
+            <line x1="70" y1="105" x2="190" y2="105" stroke="var(--paper-line)" stroke-width="2"/>
+            <line x1="70" y1="125" x2="150" y2="125" stroke="var(--paper-line)" stroke-width="2"/>
+            <line x1="70" y1="145" x2="170" y2="145" stroke="var(--paper-line)" stroke-width="2"/>
+            <rect x="205" y="45" width="70" height="70" rx="10" fill="var(--sticky)" transform="rotate(6 240 80)"/>
+            <text x="240" y="86" transform="rotate(6 240 80)" text-anchor="middle" font-size="26" font-weight="900" fill="var(--sticky-foreground)" font-family="Fraunces, serif">XP</text>
+            <circle cx="55" cy="55" r="18" fill="var(--accent)"/>
+            <path d="M48 55l5 5 9-11" stroke="var(--accent-foreground)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <rect x="40" y="180" width="34" height="10" rx="5" fill="var(--mint)"/>
+            <rect x="80" y="180" width="54" height="10" rx="5" fill="var(--berry)"/>
+            <rect x="140" y="180" width="24" height="10" rx="5" fill="var(--sky)"/>
+          </svg>
+        </div>
+      </section>
+
+      <section class="features">
+        <article class="notebook-card feature-card animate-pop-in">
+          <span class="feature-icon"><i data-lucide="timer"></i></span>
+          <h2 class="mt-3" style="font-size:1.1rem;">Stopwatch sessions</h2>
+          <p class="muted mt-1" style="font-size:.9rem;">Start, pause and finish. Every minute becomes 1 XP.</p>
+        </article>
+        <article class="notebook-card feature-card animate-pop-in">
+          <span class="feature-icon"><i data-lucide="book-open"></i></span>
+          <h2 class="mt-3" style="font-size:1.1rem;">Subjects &amp; goals</h2>
+          <p class="muted mt-1" style="font-size:.9rem;">Colour-code subjects and set weekly hour goals.</p>
+        </article>
+        <article class="notebook-card feature-card animate-pop-in">
+          <span class="feature-icon"><i data-lucide="bar-chart-3"></i></span>
+          <h2 class="mt-3" style="font-size:1.1rem;">Stats &amp; heatmap</h2>
+          <p class="muted mt-1" style="font-size:.9rem;">A 12-week consistency map like a habit tracker.</p>
+        </article>
+        <article class="notebook-card feature-card animate-pop-in">
+          <span class="feature-icon"><i data-lucide="flame"></i></span>
+          <h2 class="mt-3" style="font-size:1.1rem;">Streaks</h2>
+          <p class="muted mt-1" style="font-size:.9rem;">Study daily and watch your streak grow.</p>
+        </article>
+        <article class="notebook-card feature-card animate-pop-in">
+          <span class="feature-icon"><i data-lucide="trophy"></i></span>
+          <h2 class="mt-3" style="font-size:1.1rem;">Leaderboards</h2>
+          <p class="muted mt-1" style="font-size:.9rem;">Weekly, monthly and all-time XP rankings.</p>
+        </article>
+        <article class="notebook-card feature-card animate-pop-in">
+          <span class="feature-icon"><i data-lucide="sparkles"></i></span>
+          <h2 class="mt-3" style="font-size:1.1rem;">Achievements</h2>
+          <p class="muted mt-1" style="font-size:.9rem;">Unlock badges with bonus XP as you progress.</p>
+        </article>
+      </section>
+
+      <section class="notebook-card ruled cta-block">
+        <h2 style="font-size:1.9rem;">Ready to open your notebook?</h2>
+        <p class="muted mt-2">Create a free account and log your first session in under a minute.</p>
+        <a id="cta-bottom" class="btn btn-primary btn-lg mt-4" href="auth.html" style="display:inline-flex;">Create my account</a>
+      </section>
+    </main>
+
+    <footer class="landing-footer">StudyQuest · a cozy study companion</footer>
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    const user = SQ.getCurrentUser();
+    if (user) {
+      document.getElementById("header-cta").textContent = "Go to my desk";
+      document.getElementById("header-cta").href = "dashboard.html";
+      document.getElementById("hero-cta").textContent = "Open my desk";
+      document.getElementById("hero-cta").href = "dashboard.html";
+      document.getElementById("cta-bottom").textContent = "Open my desk";
+      document.getElementById("cta-bottom").href = "dashboard.html";
+    }
+  </script>
+</body>
+</html>

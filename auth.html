@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in — StudyQuest</title>
+  <meta name="description" content="Create your StudyQuest account or sign in to keep earning XP for every study session." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=Nunito:wght@400;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+</head>
+<body>
+  <div id="toast-region"></div>
+
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <a href="index.html" class="brand flex" style="justify-content:center;margin-bottom:1.5rem;">
+        <span class="brand-mark"><i data-lucide="book-open"></i></span>
+        StudyQuest
+      </a>
+
+      <div class="notebook-card animate-pop-in" style="padding:1.5rem;">
+        <div id="auth-forms">
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="signin">Sign in</button>
+            <button class="tab-btn" data-tab="signup">Sign up</button>
+          </div>
+
+          <div class="tab-panel active" data-panel="signin">
+            <form id="signin-form">
+              <div class="field">
+                <label for="signin-email">Email</label>
+                <input id="signin-email" type="email" autocomplete="email" placeholder="you@school.com" />
+              </div>
+              <div class="field">
+                <label for="signin-password">Password</label>
+                <input id="signin-password" type="password" autocomplete="current-password" />
+              </div>
+              <button type="submit" class="btn btn-primary btn-block" id="signin-submit">Sign in</button>
+            </form>
+          </div>
+
+          <div class="tab-panel" data-panel="signup">
+            <form id="signup-form">
+              <div class="field">
+                <label for="signup-username">Username</label>
+                <input id="signup-username" placeholder="study_hero" maxlength="24" />
+              </div>
+              <div class="field">
+                <label for="signup-email">Email</label>
+                <input id="signup-email" type="email" autocomplete="email" />
+              </div>
+              <div class="field">
+                <label for="signup-password">Password</label>
+                <input id="signup-password" type="password" autocomplete="new-password" />
+              </div>
+              <button type="submit" class="btn btn-primary btn-block" id="signup-submit">Create account</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <p class="muted mt-4 text-center" style="font-size:.75rem;">
+        You stay signed in on this device, so you only need to sign in once.
+      </p>
+    </div>
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+    // already signed in? go straight to the desk
+    if (SQ.getCurrentUser()) {
+      window.location.href = "dashboard.html";
+    }
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.querySelector(`[data-panel="${btn.dataset.tab}"]`).classList.add("active");
+      });
+    });
+
+    function isValidEmail(v) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    }
+
+    document.getElementById("signin-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const email = document.getElementById("signin-email").value.trim();
+      const password = document.getElementById("signin-password").value;
+      if (!isValidEmail(email)) return sqToast("Enter a valid email", "error");
+      if (password.length < 6) return sqToast("Password must be at least 6 characters", "error");
+
+      const result = SQ.signIn({ email, password });
+      if (result.error) return sqToast(result.error, "error");
+      sqToast("Welcome back!", "success");
+      window.location.href = "dashboard.html";
+    });
+
+    document.getElementById("signup-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const username = document.getElementById("signup-username").value.trim();
+      const email = document.getElementById("signup-email").value.trim();
+      const password = document.getElementById("signup-password").value;
+
+      if (username.length < 2 || username.length > 24) return sqToast("Username must be 2–24 characters", "error");
+      if (!isValidEmail(email)) return sqToast("Enter a valid email", "error");
+      if (password.length < 6) return sqToast("Password must be at least 6 characters", "error");
+
+      const result = SQ.signUp({ username, email, password });
+      if (result.error) return sqToast(result.error, "error");
+      sqToast("Account created — let's study!", "success");
+      window.location.href = "dashboard.html";
+    });
+  </script>
+</body>
+</html>
