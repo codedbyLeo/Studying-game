@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign in — StudyQuest</title>
+  <meta name="description" content="Create your StudyQuest account or sign in to keep earning XP for every study session." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=Nunito:wght@400;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="logo.svg" type="image/svg+xml" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+</head>
+<body>
+  <div id="toast-region"></div>
+
+  <div class="auth-wrap">
+    <div class="auth-box">
+      <a href="index.html" class="brand flex" style="justify-content:center;margin-bottom:1.5rem;">
+        <span class="brand-mark"><i data-lucide="book-open"></i></span>
+        StudyQuest
+      </a>
+
+      <div class="notebook-card animate-pop-in" style="padding:1.5rem;">
+        <div id="signed-in-notice" style="display:none;text-align:center;">
+          <p class="hand text-primary" style="font-size:1.5rem;">Almost there!</p>
+          <h1 style="font-size:1.5rem;">Check your email</h1>
+          <p class="muted mt-3" style="font-size:.9rem;">
+            If email confirmation is enabled, check <strong id="confirm-email"></strong>, confirm the account, then sign in.
+          </p>
+          <button class="btn btn-secondary btn-block mt-4" id="back-to-signin">Back to sign in</button>
+        </div>
+
+        <div id="auth-forms">
+          <div class="tabs">
+            <button class="tab-btn active" data-tab="signin">Sign in</button>
+            <button class="tab-btn" data-tab="signup">Sign up</button>
+          </div>
+
+          <div class="tab-panel active" data-panel="signin">
+            <form id="signin-form">
+              <div class="field">
+                <label for="signin-email">Email</label>
+                <input id="signin-email" type="email" autocomplete="email" placeholder="you@school.com" />
+              </div>
+              <div class="field">
+                <label for="signin-password">Password</label>
+                <input id="signin-password" type="password" autocomplete="current-password" />
+              </div>
+              <button type="submit" class="btn btn-primary btn-block" id="signin-submit">Sign in</button>
+            </form>
+          </div>
+
+          <div class="tab-panel" data-panel="signup">
+            <form id="signup-form">
+              <div class="field">
+                <label for="signup-username">Username</label>
+                <input id="signup-username" placeholder="study_hero" maxlength="24" />
+              </div>
+              <div class="field">
+                <label for="signup-email">Email</label>
+                <input id="signup-email" type="email" autocomplete="email" />
+              </div>
+              <div class="field">
+                <label for="signup-password">Password</label>
+                <input id="signup-password" type="password" autocomplete="new-password" />
+              </div>
+              <button type="submit" class="btn btn-primary btn-block" id="signup-submit">Create account</button>
+            </form>
+          </div>
+
+          <div class="divider">or</div>
+          <button class="btn btn-secondary btn-block" id="google-btn">Continue with Google</button>
+          <p class="muted mt-2" style="font-size:.72rem;text-align:center;">
+            Cloud email accounts are synced through Supabase. Google sign-in is still optional and not configured.
+          </p>
+        </div>
+      </div>
+
+      <p class="muted mt-4 text-center" style="font-size:.75rem;">
+        With cloud mode enabled, your account stays signed in on each device and the same account works on phone and PC.
+      </p>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/db.js"></script>
+  <script src="js/ui.js"></script>
+  <script>
+  (async () => {
+    // Restore the same cloud session on every device.
+    await SQ.init();
+    if (SQ.getCurrentUser()) {
+      window.location.href = "dashboard.html";
+    }
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.querySelector(`[data-panel="${btn.dataset.tab}"]`).classList.add("active");
+      });
+    });
+
+    function isValidEmail(v) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    }
+
+    document.getElementById("signin-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("signin-email").value.trim();
+      const password = document.getElementById("signin-password").value;
+      if (!isValidEmail(email)) return sqToast("Enter a valid email", "error");
+      if (password.length < 6) return sqToast("Password must be at least 6 characters", "error");
+
+      const result = await SQ.signIn({ email, password });
+      if (result.error) return sqToast(result.error, "error");
+      sqToast("Welcome back!", "success");
+      window.location.href = "dashboard.html";
+    });
+
+    document.getElementById("signup-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = document.getElementById("signup-username").value.trim();
+      const email = document.getElementById("signup-email").value.trim();
+      const password = document.getElementById("signup-password").value;
+
+      if (username.length < 2 || username.length > 24) return sqToast("Username must be 2–24 characters", "error");
+      if (!isValidEmail(email)) return sqToast("Enter a valid email", "error");
+      if (password.length < 6) return sqToast("Password must be at least 6 characters", "error");
+
+      const result = await SQ.signUp({ username, email, password });
+      if (result.error) return sqToast(result.error, "error");
+      if (result.needsConfirmation) {
+        document.getElementById("confirm-email").textContent = email;
+        document.getElementById("auth-forms").style.display = "none";
+        document.getElementById("signed-in-notice").style.display = "block";
+        return;
+      }
+      sqToast("Account created — let's study!", "success");
+      window.location.href = "dashboard.html";
+    });
+
+    document.getElementById("back-to-signin").addEventListener("click", () => {
+      document.getElementById("signed-in-notice").style.display = "none";
+      document.getElementById("auth-forms").style.display = "block";
+    });
+
+    document.getElementById("google-btn").addEventListener("click", () => {
+      sqToast("Google sign-in is optional and not configured yet — use email instead.", "error");
+    });
+    })();
+</script>
+</body>
+</html>

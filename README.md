@@ -1,54 +1,35 @@
-# StudyQuest (plain HTML/CSS/JS rebuild)
+# StudyQuest
 
-A cozy "study notebook" tracker: earn XP for every minute you study, level up,
-build streaks, unlock badges and climb a leaderboard.
+A cozy study RPG made with HTML, CSS and JavaScript, with Supabase cloud auth/database.
 
-This is a full rebuild of the original React/Supabase app as a **plain
-multi-page website** — separate HTML pages, one shared CSS file, and small
-JS files per page. There's no build step and no server: just open
-`index.html` in a browser, or serve the folder with any static file server.
+## Publish
 
-## Pages
+This is a static frontend. GitHub Pages, InfinityFree, Netlify, Vercel, Cloudflare Pages and similar hosts can serve it. No PHP server is required for the app itself.
 
-- `index.html` — landing page
-- `auth.html` — sign in / sign up
-- `dashboard.html` — the study desk (today/week/level overview)
-- `timer.html` — stopwatch + manual session logging
-- `subjects.html` — manage subjects, colors and weekly goals
-- `stats.html` — charts + 12-week consistency heatmap
-- `history.html` — searchable/sortable session log
-- `leaderboard.html` — weekly / monthly / all-time XP rankings
-- `profile.html` — profile editor + achievements
+For cloud features, the site needs a Supabase project and HTTPS (normal on modern hosts).
 
-## How data is stored
+## Supabase setup
 
-There's no backend. All accounts, subjects, sessions and achievements are
-stored in the browser's `localStorage` (see `js/db.js`), so everything runs
-entirely client-side on one device/browser. The game rules (1 minute = 1 XP,
-the leveling curve, streaks, and the achievement thresholds) are ported
-directly from the original app's logic.
+1. Open your Supabase project's SQL Editor.
+2. Run **all** of `supabase-setup.sql`.
+3. In `js/config.js`, replace the placeholder values with your Supabase **Project URL** and **anon/publishable key**.
+4. In Supabase Auth settings, configure your site's URL and redirect URL to your published site.
+5. Create your first admin by inserting the email you use to sign in into `public.app_admins`:
 
-The leaderboard contains **no fake/ students**. It ranks only accounts
-that actually exist in this browser's saved `localStorage` data.
-
-Because this is a static HTML/CSS/JS site with no backend, accounts are saved
-immediately in the browser and persist on that device/browser. A GitHub Pages
-deployment cannot share accounts or leaderboard data between different
-people/devices. For a truly global multi-user leaderboard, connect `js/db.js`
-to a real backend/database later.
-
-## Running it
-
-Just double-click `index.html`, or from this folder:
-
-```bash
-python3 -m http.server 8080
-# then open http://localhost:8080
+```sql
+insert into public.app_admins(email) values ('YOUR-EMAIL@example.com');
 ```
 
-## Customizing
+Then open `admin.html` while signed in as that account.
 
-- Colors, fonts and the notebook/paper look live in `css/style.css` as CSS
-  variables at the top of the file.
-- Icons come from the [Lucide](https://lucide.dev) icon set via CDN.
-- Fonts (Fraunces, Nunito, Caveat) load from Google Fonts.
+## New game features
+
+- Real cloud accounts: the same account can be signed in on phone and PC at the same time.
+- Global leaderboard from real profiles only.
+- Live level/progress updates after earning XP without refreshing.
+- Unlocked badges appear first; expanded achievements are sorted by rarity.
+- Scheduled double/triple/etc. XP events.
+- Monthly #1 gets a special champion effect.
+- Admin game-control page for scheduled XP events and playful XP effects.
+- Click the profile picture in the desktop sidebar or mobile header to open the profile; the old Profile nav item is removed.
+- Favicon/logo included in `logo.svg`.
