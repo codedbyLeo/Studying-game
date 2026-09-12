@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Student Profile — StudyQuest</title>
+  <meta name="description" content="View another student's StudyQuest profile, level, and achievements." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;900&family=Nunito:wght@400;600;700;800&family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="logo.svg" type="image/svg+xml" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+</head>
+<body data-page="public-profile">
+  <div id="toast-region"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a href="dashboard.html" class="brand">
+        <span class="brand-mark"><i data-lucide="book-open"></i></span>
+        StudyQuest
+      </a>
+      <div class="notebook-card side-profile">
+        <div class="side-profile-top">
+          <div class="avatar avatar-md" data-user-avatar></div>
+          <div style="min-width:0;">
+            <p style="font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" data-user-name></p>
+            <p class="hand text-primary" style="font-size:1.15rem;line-height:1;" data-user-level></p>
+          </div>
+        </div>
+        <div class="progress mt-3"><div data-user-progress></div></div>
+        <p class="muted mt-2" style="font-size:.72rem;" data-user-xp-next></p>
+        <p class="text-primary mt-1" style="font-size:.72rem;font-weight:700;display:flex;align-items:center;gap:.3rem;">
+          <i data-lucide="flame" style="width:.85rem;height:.85rem;"></i> <span data-user-streak></span>
+        </p>
+      </div>
+      <nav class="side-nav">
+        <a href="dashboard.html" data-nav-link="dashboard"><i data-lucide="book-open"></i>Desk</a>
+        <a href="timer.html" data-nav-link="timer"><i data-lucide="timer"></i>Timer</a>
+        <a href="subjects.html" data-nav-link="subjects"><i data-lucide="library"></i>Subjects</a>
+        <a href="stats.html" data-nav-link="stats"><i data-lucide="bar-chart-3"></i>Stats</a>
+        <a href="history.html" data-nav-link="history"><i data-lucide="history"></i>History</a>
+        <a href="leaderboard.html" data-nav-link="leaderboard"><i data-lucide="trophy"></i>Ranks</a>
+      </nav>
+      <button class="btn btn-ghost" style="margin-top:auto;justify-content:flex-start;" data-sign-out>
+        <i data-lucide="log-out"></i> Sign out
+      </button>
+    </aside>
+
+    <div class="main-col">
+      <header class="mobile-header">
+        <div class="avatar avatar-sm" data-user-avatar></div>
+        <div style="min-width:0;flex:1;">
+          <p style="font-size:.85rem;font-weight:800;" data-user-level></p>
+          <div class="progress progress-thin mt-1"><div data-user-progress></div></div>
+        </div>
+        <button class="btn btn-ghost btn-icon" data-sign-out aria-label="Sign out"><i data-lucide="log-out"></i></button>
+      </header>
+
+      <main class="page">
+        <header class="page-header">
+          <div>
+            <button class="btn btn-ghost" style="margin-bottom:1rem;" onclick="history.back()">
+              <i data-lucide="arrow-left"></i> Back
+            </button>
+            <p class="hand text-primary" style="font-size:1.25rem;">Student card</p>
+            <h1 id="pp-title">Loading...</h1>
+          </div>
+        </header>
+
+        <div id="pp-error" style="display:none;">
+          <div class="notebook-card card" style="text-align:center;">
+            <i data-lucide="alert-circle" style="width:3rem;height:3rem;color:var(--destructive);margin:0 auto;"></i>
+            <p class="hand text-primary mt-2" style="font-size:1.5rem;">Not found</p>
+            <p class="muted mt-1">This student's profile doesn't exist or is private.</p>
+            <a href="leaderboard.html" class="btn btn-primary mt-4">Back to leaderboard</a>
+          </div>
+        </div>
+
+        <div id="pp-content" style="display:none;">
+          <div class="grid" style="gap:1rem;">
+            <div class="notebook-card card" style="text-align:center;">
+              <div class="avatar avatar-lg" style="margin:0 auto;" id="pp-avatar"></div>
+              <h2 class="mt-3" style="font-size:1.5rem;" id="pp-username"></h2>
+              <p class="hand text-primary" style="font-size:1.2rem;" id="pp-level"></p>
+              <p class="muted mt-2" style="font-size:.85rem;" id="pp-bio"></p>
+              
+              <div class="stat-grid mt-4" id="pp-stat-grid" style="text-align:left;"></div>
+            </div>
+
+            <div class="flex" style="flex-direction:column;gap:1rem;">
+              <div class="notebook-card card">
+                <h2 class="card-title">Study Stats</h2>
+                <div id="pp-stats"></div>
+              </div>
+
+              <div class="notebook-card card">
+                <h2 class="card-title">Achievements</h2>
+                <div class="ach-grid" id="pp-ach-grid"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </main>
+
+      <nav class="bottom-nav">
+        <a href="dashboard.html" data-nav-link="dashboard"><i data-lucide="book-open"></i>Desk</a>
+        <a href="timer.html" data-nav-link="timer"><i data-lucide="timer"></i>Timer</a>
+        <a href="subjects.html" data-nav-link="subjects"><i data-lucide="library"></i>Subjects</a>
+        <a href="stats.html" data-nav-link="stats"><i data-lucide="bar-chart-3"></i>Stats</a>
+        <a href="history.html" data-nav-link="history"><i data-lucide="history"></i>History</a>
+        <a href="leaderboard.html" data-nav-link="leaderboard"><i data-lucide="trophy"></i>Ranks</a>
+      </nav>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/db.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/public-profile.js"></script>
+</body>
+</html>
