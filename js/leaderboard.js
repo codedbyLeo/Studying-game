@@ -5,7 +5,7 @@
   let period = "all";
   const activeEvent = await SQ.getActiveEvent();
   const eventBanner = document.getElementById("xp-event-banner");
-  if (activeEvent && eventBanner) { eventBanner.style.display = "block"; eventBanner.innerHTML = `<strong>⚡ ${sqEscape(activeEvent.name)}</strong> · ${Number(activeEvent.multiplier)}× XP is active!`; }
+  if (activeEvent && eventBanner) { eventBanner.style.display = "block"; eventBanner.innerHTML = `<strong>⚡ ${sqEscape(activeEvent.name)}</strong> · ${Number(activeEvent.multiplier)}× XP is active`; }
 
   async function render() {
     const rows = await SQ.getLeaderboard(period);
@@ -30,11 +30,16 @@
           : rank === 2 ? `<i data-lucide="medal" style="color:var(--muted-foreground);"></i>`
           : rank === 3 ? `<i data-lucide="trophy" style="color:var(--muted-foreground);"></i>`
           : rank;
+        
+        // Make row clickable for other users
+        const isClickable = !isMe;
+        const clickHandler = isClickable ? `onclick="window.location.href='public-profile.html?id=${row.user_id}';" style="cursor:pointer;"` : "";
+        
         return `
-          <li class="lb-row${isMe ? " me" : ""}${isMonthlyChampion ? " monthly-champion" : ""}">
+          <li class="lb-row${isMe ? " me" : ""}${isMonthlyChampion ? " monthly-champion" : ""}" ${clickHandler}>
             <span class="lb-rank">${rankIcon}</span>
-            <div class="avatar avatar-sm">
-              ${row.avatar_url ? `<img src="${sqEscape(row.avatar_url)}" alt="">` : sqInitials(row.username)}
+            <div class="avatar avatar-sm" style="flex-shrink:0;">
+              ${row.avatar_url ? `<img src="${sqEscape(row.avatar_url)}" alt="${sqEscape(row.username)}" style="width:100%;height:100%;object-fit:cover;">` : sqInitials(row.username)}
             </div>
             <div style="min-width:0;flex:1;">
               <p style="font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
