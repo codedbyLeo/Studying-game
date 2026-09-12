@@ -1,36 +1,48 @@
-/* =========================================================
-   StudyQuest data layer
-   Everything is stored in the browser's localStorage, so the
-   whole app works with no backend/server — just open the
-   HTML files. One browser = one "device" with its own accounts.
-   ========================================================= */
+/* StudyQuest Database Layer — localStorage + optional Supabase cloud */
 
-const SQ = (() => {
-  const LS_USERS = "sq_users";           // { [userId]: userRecord }
-  const LS_SESSION = "sq_session";        // current logged-in userId
-  const LS_SUBJECTS = "sq_subjects";      // { [userId]: Subject[] }
-  const LS_SESSIONS = "sq_study_sessions";// { [userId]: StudySession[] }
-  const LS_ACHIEVEMENTS = "sq_user_achievements"; // { [userId]: {code, unlocked_at}[] }
-  const LS_DEMO = "sq_demo_leaderboard";  // seeded fake rivals for the leaderboard
+window.SQ = window.SQ || {};
 
-  /* ---------------- generic storage helpers ---------------- */
+(async function() {
+  const LS_USERS = "sq_users";
+  const LS_SESSIONS = "sq_sessions";
+  const LS_SUBJECTS = "sq_subjects";
+  const LS_ACHIEVEMENTS = "sq_achievements";
+  const LS_SESSION = "sq_session";
+
+  let CLOUD_ENABLED = false;
+  let sb = null;
+
   function readJSON(key, fallback) {
     try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch {
+      const val = localStorage.getItem(key);
+      return val ? JSON.parse(val) : fallback;
+    } catch (e) {
+      console.error("readJSON error:", e);
       return fallback;
     }
   }
+
   function writeJSON(key, value) {
     localStorage.setItem(key, JSON.stringify(value));
   }
+
   function uid() {
     return "id_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
   }
 
-  /* ---------------- game rules ---------------- */
-  const XP_PER_MINUTE = 1;
+  // Achievement definitions
+  const ACHIEVEMENTS = [
+    { code: "first_session", title: "First Steps", icon: "play", xp_reward: 10 },
+    { code: "ten_sessions", title: "Dedicated", icon: "book-open", xp_reward: 25 },
+    { code: "hour_studied", title: "Marathon", icon: "hourglass", xp_reward: 50 },
+    { code: "level_5", title: "Climber", icon: "trending-up", xp_reward: 100 },
+    { code: "week_streak", title: "On Fire", icon: "flame", xp_reward: 75 },
+  ];
+
+  const SUBJECT_COLORS = [
+    "#FF6B6B", "#4ECDC4", "#45B7D1", "#FFA07A", "#98D8C8",
+    "#F7DC6F", "#BB8FCE", "#85C1E2", "#F8B88B", "#52D3A7",
+  ];
 
   function xpForLevel(level) {
     const n = Math.max(1, level) - 1;
@@ -38,29 +50,24 @@ const SQ = (() => {
   }
 
   function getLevelInfo(xp) {
-    const safeXp = Math.max(0, Math.floor(xp || 0));
     let level = 1;
-    while (xpForLevel(level + 1) <= safeXp) level += 1;
-    const start = xpForLevel(level);
-    const next = xpForLevel(level + 1);
-    const xpForThisLevel = next - start;
-    const xpIntoLevel = safeXp - start;
-    return {
-      level,
-      xpIntoLevel,
-      xpForThisLevel,
-      xpToNextLevel: next - safeXp,
-      progress: Math.min(100, Math.round((xpIntoLevel / xpForThisLevel) * 100)),
-    };
+    let totalXpForLevel = 0;
+    while (xpForLevel(level + 1) <= xp) {
+      level++;
+    }
+    totalXpForLevel = xpForLevel(level);
+    const xpForThisLevel = xpForLevel(level + 1) - totalXpForLevel;
+    const xpIntoLevel = xp - totalXpForLevel;
+    const xpToNextLevel = Math.max(0, xpForThisLevel - xpIntoLevel);
+    const progress = Math.round((xpIntoLevel / xpForThisLevel) * 100);
+    return { level, xpIntoLevel, xpForThisLevel, xpToNextLevel, progress };
   }
 
   function formatMinutes(minutes) {
-    const total = Math.max(0, Math.round(minutes || 0));
-    const h = Math.floor(total / 60);
-    const m = total % 60;
-    if (h === 0) return `${m}m`;
-    if (m === 0) return `${h}h`;
-    return `${h}h ${m}m`;
+    if (minutes < 60) return `${Math.round(minutes)}m`;
+    const hours = Math.floor(minutes / 60);
+    const mins = Math.round(minutes % 60);
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
   }
 
   function formatHours(minutes) {
@@ -68,11 +75,10 @@ const SQ = (() => {
   }
 
   function formatStopwatch(seconds) {
-    const s = Math.max(0, Math.floor(seconds));
-    const hh = String(Math.floor(s / 3600)).padStart(2, "0");
-    const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
-    const ss = String(s % 60).padStart(2, "0");
-    return `${hh}:${mm}:${ss}`;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
   function toDateKey(date) {
@@ -81,190 +87,198 @@ const SQ = (() => {
     const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }
+
   function todayKey() { return toDateKey(new Date()); }
 
   function startOfWeekKey(base = new Date()) {
     const d = new Date(base);
-    const day = (d.getDay() + 6) % 7; // Monday = 0
-    d.setDate(d.getDate() - day);
+    d.setDate(d.getDate() - d.getDay());
     return toDateKey(d);
   }
+
   function startOfMonthKey(base = new Date()) {
     return toDateKey(new Date(base.getFullYear(), base.getMonth(), 1));
   }
+
   function addDays(dateKey, delta) {
     const [y, m, d] = dateKey.split("-").map(Number);
-    const dt = new Date(y, m - 1, d);
-    dt.setDate(dt.getDate() + delta);
-    return toDateKey(dt);
+    const date = new Date(y, m - 1, d);
+    date.setDate(date.getDate() + delta);
+    return toDateKey(date);
   }
 
-  const SUBJECT_COLORS = [
-    "#d9773f", "#e0b03a", "#6fae7d", "#4f95c4",
-    "#8a7bc8", "#d16a8f", "#4bab9b", "#b0693f",
-  ];
-
-  const ACHIEVEMENTS = [
-    { code: "first_session", title: "First Study Session", description: "You opened the notebook and started your quest.", icon: "book-open", xp_reward: 50, rarity: "common" },
-    { code: "streak_3", title: "3 Day Streak", description: "Studied three days in a row.", icon: "flame", xp_reward: 100, rarity: "common" },
-    { code: "streak_7", title: "7 Day Study Streak", description: "A full week of consistency!", icon: "flame", xp_reward: 200, rarity: "uncommon" },
-    { code: "streak_30", title: "30 Day Streak", description: "A whole month without missing a day.", icon: "trophy", xp_reward: 1000, rarity: "legendary" },
-    { code: "hours_10", title: "10 Hours Studied", description: "Ten hours of focus banked.", icon: "clock", xp_reward: 150, rarity: "uncommon" },
-    { code: "hours_50", title: "50 Hours Studied", description: "Half a hundred hours of study.", icon: "star", xp_reward: 500, rarity: "rare" },
-    { code: "hours_100", title: "100 Hours Studied", description: "Century club of studying.", icon: "award", xp_reward: 1000, rarity: "legendary" },
-    { code: "sessions_25", title: "25 Sessions", description: "Twenty-five study sessions logged.", icon: "notebook-pen", xp_reward: 250, rarity: "rare" },
-    { code: "subjects_3", title: "Well Rounded", description: "Created three different subjects.", icon: "library", xp_reward: 100, rarity: "common" },
-    { code: "marathon", title: "Marathon Session", description: "A single session of 120 minutes or more.", icon: "rocket", xp_reward: 300, rarity: "epic" },
-  ];
-
-  /* ---------------- stats helpers ---------------- */
   function sumMinutes(sessions) {
-    return sessions.reduce((t, s) => t + s.minutes, 0);
+    return sessions.reduce((t, s) => t + (s.minutes || 0), 0);
   }
+
   function minutesSince(sessions, fromKey) {
     return sumMinutes(sessions.filter((s) => s.studied_on >= fromKey));
   }
+
   function dashboardTotals(sessions) {
     const today = todayKey();
+    const weekStart = startOfWeekKey();
+    const monthStart = startOfMonthKey();
+
     return {
       today: minutesSince(sessions, today),
-      week: minutesSince(sessions, startOfWeekKey()),
-      month: minutesSince(sessions, startOfMonthKey()),
+      week: minutesSince(sessions, weekStart),
+      month: minutesSince(sessions, monthStart),
       total: sumMinutes(sessions),
       sessionCount: sessions.length,
     };
   }
+
   function minutesBySubject(sessions, subjects, fromKey = "1970-01-01") {
-    return subjects.map((subject) => ({
-      subject,
-      minutes: sessions
-        .filter((s) => s.subject_id === subject.id && s.studied_on >= fromKey)
-        .reduce((t, s) => t + s.minutes, 0),
+    const filtered = sessions.filter((s) => s.studied_on >= fromKey);
+    const bySubject = {};
+    filtered.forEach((s) => {
+      const sid = s.subject_id || "none";
+      bySubject[sid] = (bySubject[sid] || 0) + (s.minutes || 0);
+    });
+    return subjects.map((subj) => ({
+      subject: subj,
+      minutes: bySubject[subj.id] || 0,
     }));
   }
+
   function buildHeatmap(sessions, weeks = 12) {
-    const byDay = new Map();
-    for (const s of sessions) byDay.set(s.studied_on, (byDay.get(s.studied_on) ?? 0) + s.minutes);
-
-    const end = new Date();
-    const endMonday = new Date(end);
-    endMonday.setDate(end.getDate() - ((end.getDay() + 6) % 7));
-
-    const grid = [];
+    const today = new Date();
+    const heatmap = [];
     for (let w = weeks - 1; w >= 0; w--) {
       const week = [];
-      for (let d = 0; d < 7; d++) {
-        const day = new Date(endMonday);
-        day.setDate(endMonday.getDate() - w * 7 + d);
-        const key = toDateKey(day);
-        week.push({ date: key, minutes: day > end ? -1 : (byDay.get(key) ?? 0) });
+      for (let d = 6; d >= 0; d--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - (w * 7 + d));
+        const dateKey = toDateKey(date);
+        const dayMinutes = sessions
+          .filter((s) => s.studied_on === dateKey)
+          .reduce((t, s) => t + (s.minutes || 0), 0);
+        week.push({ date: dateKey, minutes: dayMinutes });
       }
-      grid.push(week);
+      heatmap.push(week.reverse());
     }
-    return grid;
+    return heatmap;
   }
+
   function heatLevel(minutes) {
-    if (minutes < 0) return -1;
-    if (minutes === 0) return 0;
-    if (minutes < 30) return 1;
-    if (minutes < 60) return 2;
-    if (minutes < 120) return 3;
+    if (minutes === 0) return -1;
+    if (minutes < 30) return 0;
+    if (minutes < 60) return 1;
+    if (minutes < 120) return 2;
+    if (minutes < 180) return 3;
     return 4;
   }
+
   function lastDays(sessions, days) {
-    const byDay = new Map();
-    for (const s of sessions) byDay.set(s.studied_on, (byDay.get(s.studied_on) ?? 0) + s.minutes);
     const result = [];
     for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const key = toDateKey(d);
-      result.push({
-        date: key,
-        label: d.toLocaleDateString(undefined, { weekday: "short" }),
-        minutes: byDay.get(key) ?? 0,
-      });
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateKey = toDateKey(date);
+      const minutes = sessions
+        .filter((s) => s.studied_on === dateKey)
+        .reduce((t, s) => t + (s.minutes || 0), 0);
+      result.push({ date: dateKey, label: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()], minutes });
     }
     return result;
   }
 
-  /* ---------------- cloud + accounts ---------------- */
-  const CONFIG = window.STUDYQUEST_CONFIG || {};
-  const CLOUD_ENABLED = !!(window.supabase && CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY &&
-    !CONFIG.SUPABASE_URL.includes("YOUR-PROJECT") && !CONFIG.SUPABASE_ANON_KEY.includes("YOUR_SUPABASE"));
-  const sb = CLOUD_ENABLED ? window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
-  }) : null;
-
   function getUsers() { return readJSON(LS_USERS, {}); }
   function saveUsers(users) { writeJSON(LS_USERS, users); }
+
   function findUserByEmail(email) {
     const users = getUsers();
     return Object.values(users).find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
   }
+
   function hashPassword(password) {
-    let h = 0;
-    for (let i = 0; i < password.length; i++) { h = (h << 5) - h + password.charCodeAt(i); h |= 0; }
-    return "h" + h.toString(36) + "_" + password.length;
+    // Simple hash — in production use bcrypt or Supabase auth
+    let hash = 0;
+    for (let i = 0; i < password.length; i++) {
+      const char = password.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return "hash_" + Math.abs(hash).toString(36);
   }
+
   function setSession(userId) { localStorage.setItem(LS_SESSION, userId); }
   function signOutLocal() { localStorage.removeItem(LS_SESSION); }
 
   async function init() {
-    if (!CLOUD_ENABLED) return getCurrentUser();
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session?.user) { signOutLocal(); return null; }
-    const uid = session.user.id;
-    const { data: profile } = await sb.from("profiles").select("*").eq("id", uid).maybeSingle();
-    if (!profile) {
-      const fallback = { id: uid, username: session.user.user_metadata?.username || session.user.email?.split("@")[0] || "student", email: session.user.email || "", password_hash: "", avatar_url: null, bio: null, xp: 0, current_streak: 0, longest_streak: 0, last_study_date: null, created_at: new Date().toISOString() };
-      await sb.from("profiles").upsert(fallback);
-      saveUsers({ ...getUsers(), [uid]: fallback });
-    } else saveUsers({ ...getUsers(), [uid]: profile });
-    setSession(uid);
-
-    const [subjects, sessions, achievements] = await Promise.all([
-      sb.from("subjects").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
-      sb.from("study_sessions").select("*").eq("user_id", uid).order("created_at", { ascending: false }),
-      sb.from("user_achievements").select("*").eq("user_id", uid).order("unlocked_at", { ascending: true })
-    ]);
-    writeJSON(LS_SUBJECTS_KEY(uid), subjects.data || []);
-    writeJSON(LS_SESSIONS_KEY(uid), sessions.data || []);
-    writeJSON(LS_ACH_KEY(uid), (achievements.data || []).map(a => ({ code: a.code, unlocked_at: a.unlocked_at })));
-    return getCurrentUser();
+    if (window.STUDYQUEST_CONFIG?.SUPABASE_URL && window.STUDYQUEST_CONFIG?.SUPABASE_ANON_KEY) {
+      try {
+        sb = window.supabase.createClient(
+          window.STUDYQUEST_CONFIG.SUPABASE_URL,
+          window.STUDYQUEST_CONFIG.SUPABASE_ANON_KEY
+        );
+        CLOUD_ENABLED = true;
+      } catch (e) {
+        console.warn("Supabase init failed, using localStorage only", e);
+        CLOUD_ENABLED = false;
+      }
+    }
   }
 
   async function signUp({ username, email, password }) {
-    if (!CLOUD_ENABLED) {
-      if (findUserByEmail(email)) return { error: "An account with that email already exists." };
-      const users = getUsers(), id = uid();
-      const user = { id, username, email, password_hash: hashPassword(password), avatar_url: null, bio: null, xp: 0, current_streak: 0, longest_streak: 0, last_study_date: null, created_at: new Date().toISOString() };
-      users[id] = user; saveUsers(users); writeJSON(LS_SUBJECTS_KEY(id), []); writeJSON(LS_SESSIONS_KEY(id), []); writeJSON(LS_ACH_KEY(id), []); setSession(id);
-      return { user };
+    if (!username || !email || !password) return { error: "All fields required" };
+
+    if (CLOUD_ENABLED && sb) {
+      try {
+        const { data, error } = await sb.auth.signUp({ email, password });
+        if (error) return { error: error.message };
+        return { needsConfirmation: data.user && !data.session };
+      } catch (e) {
+        return { error: e.message };
+      }
     }
-    const { data, error } = await sb.auth.signUp({ email, password, options: { data: { username } } });
-    if (error) return { error: error.message };
-    if (!data.user) return { error: "Could not create the account." };
-    const id = data.user.id;
-    const user = { id, username, email, password_hash: "", avatar_url: null, bio: null, xp: 0, current_streak: 0, longest_streak: 0, last_study_date: null, created_at: new Date().toISOString() };
-    const { error: profileError } = await sb.from("profiles").upsert(user);
-    if (profileError) return { error: profileError.message };
-    saveUsers({ ...getUsers(), [id]: user });
-    writeJSON(LS_SUBJECTS_KEY(id), []); writeJSON(LS_SESSIONS_KEY(id), []); writeJSON(LS_ACH_KEY(id), []);
-    if (data.session) setSession(id);
-    return { user, needsConfirmation: !data.session };
+
+    // Local mode
+    if (findUserByEmail(email)) return { error: "Email already exists" };
+    const userId = uid();
+    const users = getUsers();
+    users[userId] = {
+      id: userId,
+      username,
+      email,
+      password_hash: hashPassword(password),
+      avatar_url: null,
+      bio: "",
+      xp: 0,
+      current_streak: 0,
+      longest_streak: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    saveUsers(users);
+    setSession(userId);
+    return { success: true };
   }
 
   async function signIn({ email, password }) {
-    if (!CLOUD_ENABLED) {
-      const user = findUserByEmail(email);
-      if (!user || user.password_hash !== hashPassword(password)) return { error: "Incorrect email or password." };
-      setSession(user.id); return { user };
+    if (!email || !password) return { error: "Email and password required" };
+
+    if (CLOUD_ENABLED && sb) {
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) return { error: error.message };
+        if (data.session) {
+          setSession(data.user.id);
+          return { success: true };
+        }
+      } catch (e) {
+        return { error: e.message };
+      }
     }
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
-    if (error) return { error: error.message };
-    await init();
-    return { user: getCurrentUser() };
+
+    // Local mode
+    const user = findUserByEmail(email);
+    if (!user || user.password_hash !== hashPassword(password)) {
+      return { error: "Invalid email or password" };
+    }
+    setSession(user.id);
+    return { success: true };
   }
 
   async function signOut() { if (CLOUD_ENABLED) await sb.auth.signOut(); signOutLocal(); }
@@ -272,144 +286,304 @@ const SQ = (() => {
   function requireAuth() { const user = getCurrentUser(); if (!user) { window.location.href = "auth.html"; return null; } return user; }
 
   function updateProfile(userId, patch) {
-    const users = getUsers(); if (!users[userId]) return null;
-    users[userId] = { ...users[userId], ...patch, updated_at: new Date().toISOString() }; saveUsers(users);
-    if (CLOUD_ENABLED) sb.from("profiles").update(patch).eq("id", userId).then(({ error }) => { if (error) console.error(error); });
-    return users[userId];
+    const users = getUsers();
+    if (users[userId]) {
+      users[userId] = { ...users[userId], ...patch, updated_at: new Date().toISOString() };
+      saveUsers(users);
+    }
   }
 
-  /* ---------------- per-user storage keys ---------------- */
   function LS_SUBJECTS_KEY(userId) { return `${LS_SUBJECTS}_${userId}`; }
   function LS_SESSIONS_KEY(userId) { return `${LS_SESSIONS}_${userId}`; }
   function LS_ACH_KEY(userId) { return `${LS_ACHIEVEMENTS}_${userId}`; }
 
-  /* ---------------- subjects ---------------- */
   function getSubjects(userId) { return readJSON(LS_SUBJECTS_KEY(userId), []); }
+
   function saveSubject(userId, subject) {
     const subjects = getSubjects(userId);
-    if (subject.id) { const idx = subjects.findIndex(s => s.id === subject.id); if (idx >= 0) subjects[idx] = { ...subjects[idx], ...subject }; }
-    else subjects.unshift({ id: uid(), user_id: userId, name: subject.name, color: subject.color, weekly_goal_hours: subject.weekly_goal_hours, created_at: new Date().toISOString() });
-    writeJSON(LS_SUBJECTS_KEY(userId), subjects); checkAchievements(userId);
-    const saved = subjects.find(s => s.id === (subject.id || subjects[0].id));
-    if (CLOUD_ENABLED && saved) sb.from("subjects").upsert(saved).then(({ error }) => { if (error) console.error(error); });
-    return subjects;
-  }
-  function deleteSubject(userId, subjectId) {
-    const subjects = getSubjects(userId).filter(s => s.id !== subjectId); writeJSON(LS_SUBJECTS_KEY(userId), subjects);
-    const sessions = getSessions(userId).map(s => s.subject_id === subjectId ? { ...s, subject_id: null } : s); writeJSON(LS_SESSIONS_KEY(userId), sessions);
-    if (CLOUD_ENABLED) { sb.from("subjects").delete().eq("id", subjectId).eq("user_id", userId); sb.from("study_sessions").update({ subject_id: null }).eq("subject_id", subjectId).eq("user_id", userId); }
-    return subjects;
+    const idx = subjects.findIndex((s) => s.id === subject.id);
+    if (idx >= 0) {
+      subjects[idx] = subject;
+    } else {
+      subjects.push({ ...subject, id: subject.id || uid(), created_at: new Date().toISOString() });
+    }
+    writeJSON(LS_SUBJECTS_KEY(userId), subjects);
   }
 
-  /* ---------------- live XP events ---------------- */
+  function deleteSubject(userId, subjectId) {
+    const subjects = getSubjects(userId);
+    writeJSON(LS_SUBJECTS_KEY(userId), subjects.filter((s) => s.id !== subjectId));
+  }
+
   async function getActiveEvent() {
-    if (!CLOUD_ENABLED) return null;
-    const { data, error } = await sb.rpc("get_active_event");
-    if (error) { console.error(error); return null; }
-    return data?.[0] || null;
+    if (CLOUD_ENABLED && sb) {
+      try {
+        const { data } = await sb.rpc("get_active_event");
+        return data?.[0] || null;
+      } catch (e) {
+        console.warn("getActiveEvent error:", e);
+      }
+    }
+    return null;
   }
 
   async function isAdmin() {
-    if (!CLOUD_ENABLED) return false;
-    const { data, error } = await sb.rpc("is_admin");
-    return !error && data === true;
+    if (CLOUD_ENABLED && sb) {
+      try {
+        const { data } = await sb.rpc("is_admin");
+        return data === true;
+      } catch (e) {
+        console.warn("isAdmin error:", e);
+      }
+    }
+    return false;
   }
 
   async function getPublicProfiles() {
-    if (!CLOUD_ENABLED) return Object.values(getUsers()).map(u=>({id:u.id,username:u.username,xp:u.xp||0,avatar_url:u.avatar_url}));
-    const { data, error } = await sb.from("profiles").select("id,username,xp,avatar_url").order("xp", {ascending:false});
-    if (error) { console.error(error); return []; }
-    return data || [];
+    if (CLOUD_ENABLED && sb) {
+      try {
+        const { data } = await sb.from("profiles").select("id,username,avatar_url,xp");
+        return data || [];
+      } catch (e) {
+        console.warn("getPublicProfiles error:", e);
+      }
+    }
+    return [];
   }
 
   async function getEvents() {
-    if (!CLOUD_ENABLED) return [];
-    const { data, error } = await sb.from("game_events").select("*").order("starts_at", { ascending: false });
-    if (error) { console.error(error); return []; }
-    return data || [];
+    if (CLOUD_ENABLED && sb) {
+      try {
+        const { data } = await sb.from("game_events").select("*");
+        return data || [];
+      } catch (e) {
+        console.warn("getEvents error:", e);
+      }
+    }
+    return [];
   }
 
   async function adminCreateEvent(input) {
-    if (!CLOUD_ENABLED) return { error: "Cloud mode is required." };
-    const { data, error } = await sb.rpc("admin_create_event", {
-      p_name: input.name, p_multiplier: Number(input.multiplier), p_starts_at: input.starts_at, p_ends_at: input.ends_at
-    });
-    return error ? { error: error.message } : { event: data?.[0] || null };
+    if (!CLOUD_ENABLED || !sb) return { error: "Cloud mode required" };
+    try {
+      const { data, error } = await sb.rpc("admin_create_event", {
+        p_name: input.name,
+        p_multiplier: input.multiplier,
+        p_starts_at: input.starts_at,
+        p_ends_at: input.ends_at,
+      });
+      return { data, error };
+    } catch (e) {
+      return { error: e.message };
+    }
   }
 
   async function adminDeleteEvent(id) {
-    if (!CLOUD_ENABLED) return { error: "Cloud mode is required." };
-    const { error } = await sb.rpc("admin_delete_event", { p_event_id: id });
-    return error ? { error: error.message } : { ok: true };
+    if (!CLOUD_ENABLED || !sb) return { error: "Cloud mode required" };
+    try {
+      await sb.rpc("admin_delete_event", { p_event_id: id });
+      return { success: true };
+    } catch (e) {
+      return { error: e.message };
+    }
   }
 
   async function adminAdjustXp(userId, amount, reason) {
-    if (!CLOUD_ENABLED) return { error: "Cloud mode is required." };
-    const { data, error } = await sb.rpc("admin_adjust_xp", { p_user_id: userId, p_amount: Number(amount), p_reason: reason || "Admin game effect" });
-    return error ? { error: error.message } : { user: data?.[0] || null };
-  }
-
-  /* ---------------- sessions ---------------- */
-  function getSessions(userId) { return readJSON(LS_SESSIONS_KEY(userId), []).slice().sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||"")); }
-  async function addSession(userId, input) {
-    const users=getUsers(), user=users[userId]; if(!user) return {error:"Not signed in."};
-    const minutes=Math.max(0,Math.round(input.minutes));
-    const activeEvent = await getActiveEvent();
-    const multiplier = Number(activeEvent?.multiplier || 1);
-    const xpEarned = Math.round(minutes * XP_PER_MINUTE * multiplier);
-    const session={id:uid(),user_id:userId,subject_id:input.subject_id||null,name:input.name||"Study session",studied_on:input.studied_on||todayKey(),minutes,xp_earned:xpEarned,notes:input.notes||null,created_at:new Date().toISOString()};
-    const sessions=getSessions(userId); sessions.unshift(session); writeJSON(LS_SESSIONS_KEY(userId),sessions);
-    let streak=user.current_streak||0,lastDay=user.last_study_date;
-    if(!lastDay) streak=1; else if(session.studied_on===lastDay) streak=Math.max(streak,1); else if(session.studied_on===addDays(lastDay,1)) streak+=1; else if(session.studied_on>lastDay) streak=1;
-    const newLastDay=!lastDay||session.studied_on>lastDay?session.studied_on:lastDay;
-    updateProfile(userId,{xp:(user.xp||0)+xpEarned,current_streak:streak,longest_streak:Math.max(user.longest_streak||0,streak),last_study_date:newLastDay});
-    if(CLOUD_ENABLED) sb.from("study_sessions").insert(session).then(({error})=>{if(error)console.error(error);});
-    const unlocked=checkAchievements(userId); return {session,unlocked};
-  }
-  function deleteSession(userId, sessionId) {
-    const sessions=getSessions(userId),target=sessions.find(s=>s.id===sessionId),remaining=sessions.filter(s=>s.id!==sessionId); writeJSON(LS_SESSIONS_KEY(userId),remaining);
-    if(target){const user=getUsers()[userId]; if(user) updateProfile(userId,{xp:Math.max(0,(user.xp||0)-target.xp_earned)});}
-    if(CLOUD_ENABLED) sb.from("study_sessions").delete().eq("id",sessionId).eq("user_id",userId);
-    return remaining;
-  }
-
-  /* ---------------- achievements ---------------- */
-  function getUnlockedAchievements(userId){return readJSON(LS_ACH_KEY(userId),[]);}
-  function checkAchievements(userId){
-    const users=getUsers(),user=users[userId];if(!user)return[];const sessions=getSessions(userId),subjects=getSubjects(userId),totalMinutes=sumMinutes(sessions),sessionCount=sessions.length,maxMinutes=sessions.reduce((m,s)=>Math.max(m,s.minutes),0),subjectCount=subjects.length,streak=user.current_streak||0;
-    const earned=[];if(sessionCount>=1)earned.push("first_session");if(streak>=3)earned.push("streak_3");if(streak>=7)earned.push("streak_7");if(streak>=30)earned.push("streak_30");if(totalMinutes>=600)earned.push("hours_10");if(totalMinutes>=3000)earned.push("hours_50");if(totalMinutes>=6000)earned.push("hours_100");if(sessionCount>=25)earned.push("sessions_25");if(subjectCount>=3)earned.push("subjects_3");if(maxMinutes>=120)earned.push("marathon");
-    const already=getUnlockedAchievements(userId),alreadyCodes=new Set(already.map(a=>a.code)),newlyUnlocked=earned.filter(c=>!alreadyCodes.has(c));
-    if(newlyUnlocked.length){const now=new Date().toISOString(),updated=already.concat(newlyUnlocked.map(code=>({code,unlocked_at:now})));writeJSON(LS_ACH_KEY(userId),updated);const bonusXp=newlyUnlocked.reduce((sum,code)=>sum+(ACHIEVEMENTS.find(a=>a.code===code)?.xp_reward||0),0);const fresh=getUsers()[userId];updateProfile(userId,{xp:(fresh.xp||0)+bonusXp});if(CLOUD_ENABLED)sb.from("user_achievements").upsert(newlyUnlocked.map(code=>({user_id:userId,code,unlocked_at:now})),{onConflict:"user_id,code"});}
-    return newlyUnlocked.map(c=>ACHIEVEMENTS.find(a=>a.code===c)).filter(Boolean);
-  }
-  function achievementsWithStatus(userId){
-    const unlocked=getUnlockedAchievements(userId),map=new Map(unlocked.map(a=>[a.code,a.unlocked_at]));
-    const rarity={legendary:5,epic:4,rare:3,uncommon:2,common:1};
-    return ACHIEVEMENTS.map(a=>({...a,unlocked_at:map.get(a.code)||null}))
-      .sort((a,b)=>(Number(!!b.unlocked_at)-Number(!!a.unlocked_at)) || ((rarity[b.rarity]||1)-(rarity[a.rarity]||1)) || a.title.localeCompare(b.title));
-  }
-
-  /* ---------------- leaderboard ---------------- */
-  async function getLeaderboard(period){
-    if (CLOUD_ENABLED) {
-      const { data, error } = await sb.rpc("get_leaderboard", { p_period: period });
-      if (!error && data) return data.slice(0, 100).map(r => ({ user_id:r.user_id, username:r.username, avatar_url:r.avatar_url, xp:Number(r.xp)||0, minutes:Number(r.minutes)||0 }));
-      console.error(error);
+    if (!CLOUD_ENABLED || !sb) return { error: "Cloud mode required" };
+    try {
+      await sb.rpc("admin_adjust_xp", {
+        p_user_id: userId,
+        p_amount: amount,
+        p_reason: reason,
+      });
+      return { success: true };
+    } catch (e) {
+      return { error: e.message };
     }
-    const users=getUsers(); const rows=Object.values(users).map(user=>{
-      const sessions=getSessions(user.id),fromKey=period==="week"?startOfWeekKey():period==="month"?startOfMonthKey():"1970-01-01";
-      const filtered=sessions.filter(s=>s.studied_on>=fromKey),minutes=filtered.reduce((sum,s)=>sum+s.minutes,0),xp=filtered.reduce((sum,s)=>sum+s.xp_earned,0);
-      return {user_id:user.id,username:user.username,avatar_url:user.avatar_url,xp,minutes};
-    });
-    rows.sort((a,b)=>b.xp-a.xp||b.minutes-a.minutes||a.username.localeCompare(b.username)); return rows.slice(0,100);
   }
 
-  return {
-    XP_PER_MINUTE, xpForLevel, getLevelInfo, formatMinutes, formatHours, formatStopwatch,
-    toDateKey, todayKey, startOfWeekKey, startOfMonthKey, SUBJECT_COLORS, ACHIEVEMENTS,
-    sumMinutes, minutesSince, dashboardTotals, minutesBySubject, buildHeatmap, heatLevel, lastDays,
-    init, signUp, signIn, signOut, getCurrentUser, requireAuth, updateProfile,
-    getSubjects, saveSubject, deleteSubject, getSessions, addSession, deleteSession,
-    getUnlockedAchievements, achievementsWithStatus, checkAchievements, getLeaderboard, getActiveEvent, getEvents, isAdmin, getPublicProfiles, adminCreateEvent, adminDeleteEvent, adminAdjustXp,
-  };
+  function getSessions(userId) { return readJSON(LS_SESSIONS_KEY(userId), []).slice().sort((a,b)=>(b.created_at||"").localeCompare(a.created_at||"")); }
+
+  async function addSession(userId, input) {
+    const user = getUsers()[userId];
+    if (!user) return { error: "User not found" };
+
+    // Calculate XP earned (1 minute = 1 XP, adjusted by active event multiplier)
+    let multiplier = 1;
+    const activeEvent = await getActiveEvent();
+    if (activeEvent) {
+      multiplier = Number(activeEvent.multiplier) || 1;
+    }
+    const xpEarned = Math.round(Math.max(0, input.minutes || 0) * multiplier);
+
+    // Create session
+    const session = {
+      id: uid(),
+      subject_id: input.subject_id || null,
+      name: input.name || "Study session",
+      studied_on: input.studied_on || todayKey(),
+      minutes: Math.max(0, input.minutes || 0),
+      xp_earned: xpEarned,
+      notes: input.notes || null,
+      created_at: new Date().toISOString(),
+    };
+
+    // Save session to localStorage
+    const sessions = getSessions(userId);
+    sessions.push(session);
+    writeJSON(LS_SESSIONS_KEY(userId), sessions);
+
+    // Update user XP
+    const newXp = (user.xp || 0) + xpEarned;
+    updateProfile(userId, { xp: newXp });
+
+    // Check achievements
+    const unlocked = checkAchievements(userId);
+
+    // Update streak
+    const today = todayKey();
+    const lastStudyDate = user.last_study_date;
+    let newStreak = user.current_streak || 0;
+    let longestStreak = user.longest_streak || 0;
+
+    if (lastStudyDate !== today) {
+      const yesterday = addDays(today, -1);
+      if (lastStudyDate === yesterday) {
+        newStreak += 1;
+      } else {
+        newStreak = 1;
+      }
+      longestStreak = Math.max(newStreak, longestStreak);
+      updateProfile(userId, {
+        current_streak: newStreak,
+        longest_streak: longestStreak,
+        last_study_date: today,
+      });
+    }
+
+    if (CLOUD_ENABLED && sb) {
+      try {
+        await sb.from("study_sessions").insert([session]);
+      } catch (e) {
+        console.warn("Cloud session sync failed:", e);
+      }
+    }
+
+    return { session, unlocked };
+  }
+
+  function deleteSession(userId, sessionId) {
+    const sessions = getSessions(userId);
+    const session = sessions.find((s) => s.id === sessionId);
+    if (session) {
+      // Refund XP
+      const user = getUsers()[userId];
+      if (user) {
+        updateProfile(userId, { xp: Math.max(0, (user.xp || 0) - session.xp_earned) });
+      }
+    }
+    writeJSON(LS_SESSIONS_KEY(userId), sessions.filter((s) => s.id !== sessionId));
+
+    if (CLOUD_ENABLED && sb) {
+      try {
+        sb.from("study_sessions").delete().eq("id", sessionId);
+      } catch (e) {
+        console.warn("Cloud session delete failed:", e);
+      }
+    }
+  }
+
+  function getUnlockedAchievements(userId){return readJSON(LS_ACH_KEY(userId),[]);}
+
+  function checkAchievements(userId) {
+    const sessions = getSessions(userId);
+    const user = getUsers()[userId];
+    const unlocked = getUnlockedAchievements(userId);
+    const newUnlocks = [];
+
+    const checks = {
+      first_session: () => sessions.length === 1,
+      ten_sessions: () => sessions.length >= 10,
+      hour_studied: () => sumMinutes(sessions) >= 60,
+      level_5: () => getLevelInfo(user.xp || 0).level >= 5,
+      week_streak: () => (user.current_streak || 0) >= 7,
+    };
+
+    Object.keys(checks).forEach((code) => {
+      if (!unlocked.find((a) => a.code === code) && checks[code]()) {
+        const ach = ACHIEVEMENTS.find((a) => a.code === code);
+        if (ach) {
+          const achievement = { ...ach, unlocked_at: new Date().toISOString() };
+          unlocked.push(achievement);
+          newUnlocks.push(achievement);
+        }
+      }
+    });
+
+    if (newUnlocks.length > 0) {
+      writeJSON(LS_ACH_KEY(userId), unlocked);
+    }
+
+    return newUnlocks;
+  }
+
+  function achievementsWithStatus(userId){
+    const unlocked = getUnlockedAchievements(userId);
+    return ACHIEVEMENTS.map((ach) => ({
+      ...ach,
+      unlocked_at: unlocked.find((u) => u.code === ach.code)?.unlocked_at || null,
+    }));
+  }
+
+  async function getLeaderboard(period){
+    if (CLOUD_ENABLED && sb) {
+      try {
+        const { data } = await sb.rpc("get_leaderboard", { p_period: period });
+        return data || [];
+      } catch (e) {
+        console.warn("getLeaderboard error:", e);
+      }
+    }
+    return [];
+  }
+
+  // Export
+  SQ.init = init;
+  SQ.signUp = signUp;
+  SQ.signIn = signIn;
+  SQ.signOut = signOut;
+  SQ.getCurrentUser = getCurrentUser;
+  SQ.requireAuth = requireAuth;
+  SQ.updateProfile = updateProfile;
+  SQ.getSubjects = getSubjects;
+  SQ.saveSubject = saveSubject;
+  SQ.deleteSubject = deleteSubject;
+  SQ.getSessions = getSessions;
+  SQ.addSession = addSession;
+  SQ.deleteSession = deleteSession;
+  SQ.getActiveEvent = getActiveEvent;
+  SQ.isAdmin = isAdmin;
+  SQ.getPublicProfiles = getPublicProfiles;
+  SQ.getEvents = getEvents;
+  SQ.adminCreateEvent = adminCreateEvent;
+  SQ.adminDeleteEvent = adminDeleteEvent;
+  SQ.adminAdjustXp = adminAdjustXp;
+  SQ.getLeaderboard = getLeaderboard;
+  SQ.getUnlockedAchievements = getUnlockedAchievements;
+  SQ.checkAchievements = checkAchievements;
+  SQ.achievementsWithStatus = achievementsWithStatus;
+  SQ.getLevelInfo = getLevelInfo;
+  SQ.formatMinutes = formatMinutes;
+  SQ.formatHours = formatHours;
+  SQ.formatStopwatch = formatStopwatch;
+  SQ.dashboardTotals = dashboardTotals;
+  SQ.minutesBySubject = minutesBySubject;
+  SQ.buildHeatmap = buildHeatmap;
+  SQ.heatLevel = heatLevel;
+  SQ.lastDays = lastDays;
+  SQ.todayKey = todayKey;
+  SQ.startOfWeekKey = startOfWeekKey;
+  SQ.startOfMonthKey = startOfMonthKey;
+  SQ.addDays = addDays;
+  SQ.SUBJECT_COLORS = SUBJECT_COLORS;
 })();
